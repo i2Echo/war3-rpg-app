@@ -9,6 +9,18 @@ const RARITY_COST: Record<string, number> = {
   S: 15,
 }
 
+// 稀缺度权重：S>>>>A>B>>C=D=E=F
+const RARITY_SCARCITY: Record<string, number> = {
+  S: 1000,
+  A: 100,
+  B: 10,
+  C: 1,
+  D: 1,
+  E: 1,
+  F: 1,
+  G: 1,
+}
+
 const DEFAULT_COST = 7
 const STEP_COST = 1
 const MAX_DEPTH = 8
@@ -1046,14 +1058,66 @@ export function createRecipeEngine(rawText: string): RecipeEngine {
     })
   }
 
-  function compareRoutePriority(a: RouteNode, b: RouteNode): number {
-    const downgradeA = isDowngradeRoute(a)
-    const downgradeB = isDowngradeRoute(b)
-
-    if (downgradeA !== downgradeB) {
-      return downgradeA ? 1 : -1
+  // 计算路线类型：-1=降级，0=平级，1=升级
+  function getRouteUpgradeLevel(route: RouteNode): number {
+    if (!route.ruleId) {
+      return 0
     }
 
+    const outputCost = getTokenRarityCost(route.item)
+    if (outputCost === null) {
+      return 0
+    }
+
+    let maxIngredientCost = 0
+    for (const ingredient of route.ingredients) {
+      const cost = getTokenRarityCost(ingredient.name)
+      if (cost !== null && cost > maxIngredientCost) {
+        maxIngredientCost = cost
+      }
+    }
+
+    if (maxIngredientCost > outputCost) {
+      return -1 // 降级
+    } else if (maxIngredientCost < outputCost) {
+      return 1 // 升级
+    }
+    return 0 // 平级
+  }
+
+  // 计算路线产出的稀缺度得分
+  function getRouteScarcityScore(route: RouteNode): number {
+    const outputCost = getTokenRarityCost(route.item)
+    if (outputCost === null) {
+      return 0
+    }
+
+    // 根据cost反推稀有度等级
+    for (const [rarity, cost] of Object.entries(RARITY_COST)) {
+      if (cost === outputCost) {
+        return RARITY_SCARCITY[rarity] || 0
+      }
+    }
+
+    return 0
+  }
+
+  function compareRoutePriority(a: RouteNode, b: RouteNode): number {
+    // 1. 优先比较升级/平级/降级（升级>平级>降级）
+    const upgradeA = getRouteUpgradeLevel(a)
+    const upgradeB = getRouteUpgradeLevel(b)
+    if (upgradeA !== upgradeB) {
+      return upgradeB - upgradeA // 升级(1)优先于平级(0)优先于降级(-1)
+    }
+
+    // 2. 比较稀缺度（S>>>>A>B>>C=D=E=F）
+    const scarcityA = getRouteScarcityScore(a)
+    const scarcityB = getRouteScarcityScore(b)
+    if (scarcityA !== scarcityB) {
+      return scarcityB - scarcityA // 高稀缺度优先
+    }
+
+    // 3. 比较成功率和成本
     return compareBySuccessThenCost(a, b)
   }
 

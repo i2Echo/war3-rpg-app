@@ -44,10 +44,25 @@ const canGoBack = computed(
   () => activeTab.value === 'synthesis' && synthesisHistory.value.length > 0,
 )
 
+// 高频装备列表
+const HIGH_FREQUENCY_ITEMS = [
+  '梵天纹章',
+  '天皇鸡冠',
+  '古代神铠',
+  '阿修罗',
+  '雾幻云珠',
+  '谛听天镯',
+  '千棱幻玉',
+  '银河幻星鞋',
+  '炽凰天衣',
+  '北斗炼日印',
+]
+
 const suggestions = computed(() => {
   const keyword = targetItem.value.trim()
   if (!keyword) {
-    return recipeEngine.outputList.slice(0, 16)
+    // 没有输入时，显示高频装备
+    return HIGH_FREQUENCY_ITEMS
   }
 
   return recipeEngine.allNames
