@@ -594,12 +594,9 @@ initializeDiduQuestions()
             :key="`${diduActiveDifficulty}-${item.id}`"
             class="didu-question-card"
           >
-            <div class="question-number">Q{{ item.id }}</div>
-            <div class="question-text">{{ item.question }}</div>
-            <div class="answer-text">
-              <span class="answer-label">答：</span>
-              {{ item.answer }}
-            </div>
+            <span class="question-num">{{ item.id }}.</span>
+            <span class="question-text">{{ item.question }}</span>
+            <span class="answer-highlight">{{ item.answer }}</span>
           </div>
         </div>
       </section>

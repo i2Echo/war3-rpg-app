@@ -609,11 +609,11 @@ body {
 }
 
 .didu-modal-panel {
-  width: min(700px, 100%);
+  width: min(750px, 90vw);
   background: #ffffff;
   border-radius: 12px;
-  padding: 16px;
-  max-height: 85vh;
+  padding: 14px;
+  max-height: 90vh;
   display: flex;
   flex-direction: column;
 }
@@ -636,17 +636,17 @@ body {
 
 .difficulty-tabs {
   display: flex;
-  gap: 8px;
-  margin-bottom: 14px;
+  gap: 6px;
+  margin-bottom: 12px;
 }
 
 .difficulty-tab {
   flex: 1;
-  padding: 10px 12px;
+  padding: 8px 10px;
   border: 1px solid #e5e7eb;
   background: #f9fafb;
-  border-radius: 8px;
-  font-size: 14px;
+  border-radius: 6px;
+  font-size: 13px;
   color: #6b7280;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -688,26 +688,37 @@ body {
 }
 
 .didu-question-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  margin-bottom: 6px;
   background: #f9fafb;
   border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 12px;
-  margin-bottom: 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
-.question-number {
-  font-size: 11px;
+.question-num {
   color: #9ca3af;
   font-weight: 600;
-  margin-bottom: 4px;
+  flex-shrink: 0;
 }
 
 .question-text {
-  font-size: 14px;
-  color: #111827;
-  font-weight: 500;
-  margin-bottom: 6px;
-  line-height: 1.4;
+  color: #374151;
+  flex: 0 1 auto;
+}
+
+.answer-highlight {
+  color: #f59e0b;
+  font-weight: 700;
+  background: rgba(245, 158, 11, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex: 0 1 auto;
 }
 
 .answer-text {
