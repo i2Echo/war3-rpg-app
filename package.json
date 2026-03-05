@@ -1,0 +1,22 @@
+{
+  "name": "war3-rpg-app",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "vue": "^3.2.47"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.3",
+    "@vitejs/plugin-vue": "^4.1.0",
+    "typescript": "^5.9.3",
+    "vite": "^4.2.0",
+    "vue-tsc": "^3.2.5"
+  }
+}
