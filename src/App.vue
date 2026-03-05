@@ -285,8 +285,9 @@ function parseDiduQuestions(mdText: string): DiduQuestionsData {
 
     if (!currentDifficulty || !trimmed) continue
 
-    // 匹配题号行，格式：数字 问题 答案
-    const match = trimmed.match(/^(\d+)\s+(.+?)\s+(.+)$/)
+    // 匹配题号行，格式：数字[空格]问题 答案
+    // 数字后的空格是可选的，最后的空格分割问题和答案
+    const match = trimmed.match(/^(\d+)\s*(.+?)\s+(.+)$/)
     if (match) {
       const id = parseInt(match[1])
       const question = match[2]
