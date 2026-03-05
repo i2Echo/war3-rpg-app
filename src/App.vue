@@ -31,6 +31,15 @@ const modalTitle = ref('')
 const modalTip = ref('')
 const modalItems = ref<ItemMeta[]>([])
 
+// 帝都答题相关
+type DiduQuestion = { id: number; question: string; answer: string }
+type DiduDifficulty = 'normal' | 'hard' | 'nightmare'
+type DiduQuestionsData = Record<DiduDifficulty, DiduQuestion[]>
+
+const diduModalOpen = ref(false)
+const diduActiveDifficulty = ref<DiduDifficulty>('normal')
+const diduQuestions = ref<DiduQuestionsData>({ normal: [], hard: [], nightmare: [] })
+
 const canGoBack = computed(
   () => activeTab.value === 'synthesis' && synthesisHistory.value.length > 0,
 )
@@ -253,14 +262,86 @@ function onSubmit() {
 
   runSynthesis(targetItem.value, 'direct')
 }
+
+// 帝都答题相关函数
+function parseDiduQuestions(mdText: string): DiduQuestionsData {
+  const result: DiduQuestionsData = { normal: [], hard: [], nightmare: [] }
+  const lines = mdText.split('\n')
+  let currentDifficulty: DiduDifficulty | null = null
+
+  for (const line of lines) {
+    const trimmed = line.trim()
+
+    if (trimmed === '# 普通') {
+      currentDifficulty = 'normal'
+      continue
+    } else if (trimmed === '## 困难') {
+      currentDifficulty = 'hard'
+      continue
+    } else if (trimmed === '## 噩梦') {
+      currentDifficulty = 'nightmare'
+      continue
+    }
+
+    if (!currentDifficulty || !trimmed) continue
+
+    // 匹配题号行，格式：数字 问题 答案
+    const match = trimmed.match(/^(\d+)\s+(.+?)\s+(.+)$/)
+    if (match) {
+      const id = parseInt(match[1])
+      const question = match[2]
+      const answer = match[3]
+
+      result[currentDifficulty].push({
+        id,
+        question,
+        answer,
+      })
+    }
+  }
+
+  return result
+}
+
+async function initializeDiduQuestions() {
+  try {
+    const mdText = await fetch('./帝都问题答案.md').then(r => r.text())
+    diduQuestions.value = parseDiduQuestions(mdText)
+  } catch (error) {
+    console.error('Failed to load didu questions:', error)
+  }
+}
+
+function openDiduModal() {
+  // 如果还没加载过题目，先加载
+  if (diduQuestions.value.normal.length === 0) {
+    initializeDiduQuestions().then(() => {
+      diduModalOpen.value = true
+    })
+  } else {
+    diduModalOpen.value = true
+  }
+}
+
+function closeDiduModal() {
+  diduModalOpen.value = false
+}
+
+// 初始化时预加载帝都问题答案
+initializeDiduQuestions()
 </script>
 
 <template>
   <main class="page">
     <section class="panel">
       <header class="hero">
-        <h1>西方世界的劫难3 · 炼化公式查询</h1>
-        <p>支持查炼化、查属性、查物品；具体物品可下钻，泛化条件可弹窗查看对应物品。</p>
+        <div class="hero-content">
+          <h1>西方世界的劫难3 · 炼化公式查询</h1>
+          <p>支持查炼化、查属性、查物品；具体物品可下钻，泛化条件可弹窗查看对应物品。</p>
+        </div>
+        <button type="button" class="didu-quiz-btn" @click="openDiduModal" title="帝都答题">
+          帝都答题
+        </button>
       </header>
 
       <form class="search-bar" @submit.prevent="onSubmit">
@@ -477,6 +558,49 @@ function onSubmit() {
             </span>
             {{ item.name }}
           </button>
+        </div>
+      </section>
+    </div>
+
+    <!-- 帝都答题弹窗 -->
+    <div v-if="diduModalOpen" class="modal-mask" @click.self="closeDiduModal">
+      <section class="didu-modal-panel">
+        <header class="didu-modal-header">
+          <h3>帝都答题</h3>
+          <button type="button" class="clear-input" @click="closeDiduModal">×</button>
+        </header>
+
+        <div class="difficulty-tabs">
+          <button
+            v-for="difficulty in ['normal', 'hard', 'nightmare'] as const"
+            :key="difficulty"
+            type="button"
+            :class="['difficulty-tab', { active: diduActiveDifficulty === difficulty }]"
+            @click="diduActiveDifficulty = difficulty"
+          >
+            {{ difficulty === 'normal' ? '普通' : difficulty === 'hard' ? '困难' : '噩梦' }}
+          </button>
+        </div>
+
+        <div class="didu-questions-container">
+          <div
+            v-if="!diduQuestions[diduActiveDifficulty].length"
+            class="empty-state"
+          >
+            加载中...
+          </div>
+          <div
+            v-for="item in diduQuestions[diduActiveDifficulty]"
+            :key="`${diduActiveDifficulty}-${item.id}`"
+            class="didu-question-card"
+          >
+            <div class="question-number">Q{{ item.id }}</div>
+            <div class="question-text">{{ item.question }}</div>
+            <div class="answer-text">
+              <span class="answer-label">答：</span>
+              {{ item.answer }}
+            </div>
+          </div>
         </div>
       </section>
     </div>

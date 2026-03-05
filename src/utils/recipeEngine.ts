@@ -32,7 +32,7 @@ const NAME_ALIAS_MAP: Record<string, string> = {
   酸雨羽扇: '酸与羽扇',
   枯叶: '枯夜',
   巽狼刀: '撰狼刀',
-  '幻剑.天珑': '幻剑天陇',
+  '幻剑.天珑': '幻剑·天陇',
   斯贝斯之诅咒: '斯贝斯的诅咒',
   罂栗骨杖: '罂粟骨杖',
   磨枪诺亚: '魔枪诺亚',
@@ -166,7 +166,9 @@ function cleanToken(value: string): string {
 
 function normalizeItemName(name: string): string {
   const normalized = cleanToken(name)
-  return NAME_ALIAS_MAP[normalized] || normalized
+  // 统一装备名称中的'.'为'·'
+  const unified = (NAME_ALIAS_MAP[normalized] || normalized).replace(/\./g, '·')
+  return unified
 }
 
 function parseQuantity(token: string): IngredientChoice {

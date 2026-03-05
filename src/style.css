@@ -39,6 +39,17 @@ body {
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
 }
 
+.hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.hero-content {
+  flex: 1;
+}
+
 .hero h1 {
   margin: 0;
   font-size: 22px;
@@ -546,8 +557,17 @@ body {
     padding: 12px;
   }
 
+  .hero {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
   .hero h1 {
     font-size: 18px;
+  }
+
+  .didu-quiz-btn {
+    width: 100%;
   }
 
   .search-bar {
@@ -561,4 +581,155 @@ body {
   .mode-btn {
     width: 100%;
   }
+
+  .didu-modal-panel {
+    width: 100%;
+  }
+}
+
+/* 帝都答题样式 */
+.didu-quiz-btn {
+  flex-shrink: 0;
+  padding: 8px 16px;
+  height: 42px;
+  border: none;
+  border-radius: 10px;
+  background: #f59e0b;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.didu-quiz-btn:hover {
+  background: #d97706;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
+
+.didu-modal-panel {
+  width: min(700px, 100%);
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 16px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.didu-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 12px;
+}
+
+.didu-modal-header h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #111827;
+}
+
+.difficulty-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.difficulty-tab {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.difficulty-tab:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.difficulty-tab.active {
+  background: #f59e0b;
+  color: #ffffff;
+  border-color: #f59e0b;
+}
+
+.didu-questions-container {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.didu-questions-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.didu-questions-container::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.didu-questions-container::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.didu-questions-container::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.didu-question-card {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+.question-number {
+  font-size: 11px;
+  color: #9ca3af;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.question-text {
+  font-size: 14px;
+  color: #111827;
+  font-weight: 500;
+  margin-bottom: 6px;
+  line-height: 1.4;
+}
+
+.answer-text {
+  font-size: 13px;
+  color: #4b5563;
+  line-height: 1.5;
+  padding: 8px 10px;
+  background: #ffffff;
+  border-left: 3px solid #f59e0b;
+  border-radius: 4px;
+}
+
+.answer-label {
+  display: inline-block;
+  color: #f59e0b;
+  font-weight: 600;
+  margin-right: 6px;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: #9ca3af;
+  font-size: 14px;
 }
