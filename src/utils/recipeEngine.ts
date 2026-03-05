@@ -23,7 +23,7 @@ const RARITY_SCARCITY: Record<string, number> = {
 
 const RANDOM_A_ACCESSORY_EXCLUDES = new Set([
   '东正护符',
-  '天皇鸡冠',
+  '天皇祭冠',
   '人马银座',
   '匠神之手',
   '天狼邪眼',

@@ -47,7 +47,7 @@ const canGoBack = computed(
 // 高频装备列表
 const HIGH_FREQUENCY_ITEMS = [
   '梵天纹章',
-  '天皇鸡冠',
+  '天皇祭冠',
   '古代神铠',
   '阿修罗',
   '雾幻云珠',
