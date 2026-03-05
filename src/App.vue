@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import formulasText from './data/formulas'
 import RouteTree from './components/RouteTree.vue'
 import { createRecipeEngine } from './utils/recipeEngine'
@@ -115,6 +115,103 @@ function getSuccessRateClass(rate: number): string {
 
 function isDowngradeWarning(note: string): boolean {
   return note.includes('降级路线')
+}
+
+function parseSelectableNote(rawNote: string): { text: string; options: string[] } {
+  const optionsMatch = rawNote.match(/【可选项:([^】]+)】/)
+  if (!optionsMatch) {
+    return { text: rawNote, options: [] }
+  }
+
+  const options = optionsMatch[1]
+    .split('、')
+    .map((item) => item.trim())
+    .filter(Boolean)
+
+  const text = rawNote
+    .replace(/【可选项:[^】]+】/g, '')
+    .replace(/[；\s]+$/, '')
+    .trim()
+
+  return { text, options }
+}
+
+function splitNSelectOne(note: string): {
+  text: string
+  options: string[]
+  before: string
+  hotspot: string
+  after: string
+} {
+  const parsed = parseSelectableNote(note)
+  const match = parsed.text.match(/\d+选1/)
+
+  if (!match) {
+    return {
+      text: parsed.text,
+      options: parsed.options,
+      before: parsed.text,
+      hotspot: '',
+      after: '',
+    }
+  }
+
+  const hotspot = match[0]
+  const index = parsed.text.indexOf(hotspot)
+  return {
+    text: parsed.text,
+    options: parsed.options,
+    before: parsed.text.slice(0, index),
+    hotspot,
+    after: parsed.text.slice(index + hotspot.length),
+  }
+}
+
+function hasNSelectOneHotspot(note: string): boolean {
+  const split = splitNSelectOne(note)
+  return split.options.length > 0 && !!split.hotspot
+}
+
+function getNoteText(note: string): string {
+  return splitNSelectOne(note).text
+}
+
+function getNoteBeforeHotspot(note: string): string {
+  return splitNSelectOne(note).before
+}
+
+function getNoteHotspot(note: string): string {
+  return splitNSelectOne(note).hotspot
+}
+
+function getNoteAfterHotspot(note: string): string {
+  return splitNSelectOne(note).after
+}
+
+function getSelectableOptionsText(note: string): string {
+  const split = splitNSelectOne(note)
+  if (!split.options.length) {
+    return ''
+  }
+  return `可选项：${split.options.join('、')}`
+}
+
+const activeTooltipKey = ref<string | null>(null)
+
+function getTooltipKey(scope: string, id: string | number, index: number): string {
+  return `${scope}-${id}-${index}`
+}
+
+function isTooltipActive(key: string): boolean {
+  return activeTooltipKey.value === key
+}
+
+function toggleTooltip(key: string) {
+  activeTooltipKey.value = activeTooltipKey.value === key ? null : key
+}
+
+function closeTooltip() {
+  activeTooltipKey.value = null
 }
 
 function resetModeData() {
@@ -343,6 +440,30 @@ function closeDiduModal() {
   diduModalOpen.value = false
 }
 
+function setDiduModalScrollLock(locked: boolean) {
+  if (typeof document === 'undefined') {
+    return
+  }
+
+  document.body.classList.toggle('body-scroll-lock', locked)
+}
+
+watch(diduModalOpen, (open) => {
+  setDiduModalScrollLock(open)
+})
+
+onUnmounted(() => {
+  setDiduModalScrollLock(false)
+})
+
+onMounted(() => {
+  document.addEventListener('click', closeTooltip)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', closeTooltip)
+})
+
 // 初始化时预加载帝都问题答案
 initializeDiduQuestions()
 </script>
@@ -455,12 +576,31 @@ initializeDiduQuestions()
           </header>
           <ul v-if="route.specialNotes.length" class="note-list">
             <li
-              v-for="note in route.specialNotes"
-              :key="note"
+              v-for="(note, noteIndex) in route.specialNotes"
+              :key="`${note}-${noteIndex}`"
               :class="{ 'downgrade-note': isDowngradeWarning(note) }"
             >
               <span v-if="isDowngradeWarning(note)" class="downgrade-note-badge">⚠ 降级</span>
-              {{ note }}
+              <span v-if="hasNSelectOneHotspot(note)">
+                {{ getNoteBeforeHotspot(note) }}
+                <span
+                  :class="['note-hotspot-wrap', { 'is-active': isTooltipActive(getTooltipKey('route', route.id, noteIndex)) }]"
+                  @click.stop
+                >
+                  <span
+                    class="note-hotspot"
+                    tabindex="0"
+                    @click.stop="toggleTooltip(getTooltipKey('route', route.id, noteIndex))"
+                    @keydown.enter.prevent="toggleTooltip(getTooltipKey('route', route.id, noteIndex))"
+                    @keydown.space.prevent="toggleTooltip(getTooltipKey('route', route.id, noteIndex))"
+                  >
+                    {{ getNoteHotspot(note) }}
+                  </span>
+                  <span class="note-hotspot-tooltip">{{ getSelectableOptionsText(note) }}</span>
+                </span>
+                {{ getNoteAfterHotspot(note) }}
+              </span>
+              <span v-else>{{ getNoteText(note) }}</span>
             </li>
           </ul>
         </article>
@@ -508,7 +648,29 @@ initializeDiduQuestions()
                 {{ info.output }} = {{ info.ingredientText }}
                 <span :class="['formula-rate-inline', getSuccessRateClass(info.chance)]">{{ formatRate(info.chance) }}</span>
                 <span v-if="info.exclusive" class="exclusive-tag">专属</span>
-                <span v-if="info.note"> · {{ info.note }}</span>
+                <span v-if="info.note">
+                  ·
+                  <span v-if="hasNSelectOneHotspot(info.note)">
+                    {{ getNoteBeforeHotspot(info.note) }}
+                    <span
+                      :class="['note-hotspot-wrap', { 'is-active': isTooltipActive(getTooltipKey('attr', searchedKeyword, idx)) }]"
+                      @click.stop
+                    >
+                      <span
+                        class="note-hotspot"
+                        tabindex="0"
+                        @click.stop="toggleTooltip(getTooltipKey('attr', searchedKeyword, idx))"
+                        @keydown.enter.prevent="toggleTooltip(getTooltipKey('attr', searchedKeyword, idx))"
+                        @keydown.space.prevent="toggleTooltip(getTooltipKey('attr', searchedKeyword, idx))"
+                      >
+                        {{ getNoteHotspot(info.note) }}
+                      </span>
+                      <span class="note-hotspot-tooltip">{{ getSelectableOptionsText(info.note) }}</span>
+                    </span>
+                    {{ getNoteAfterHotspot(info.note) }}
+                  </span>
+                  <span v-else>{{ getNoteText(info.note) }}</span>
+                </span>
               </li>
             </ul>
           </div>

@@ -21,6 +21,36 @@ const RARITY_SCARCITY: Record<string, number> = {
   G: 1,
 }
 
+const RANDOM_A_ACCESSORY_EXCLUDES = new Set([
+  '东正护符',
+  '天皇鸡冠',
+  '人马银座',
+  '匠神之手',
+  '天狼邪眼',
+])
+
+const RANDOM_A_ACCESSORY_UNIQUES = new Set([
+  '古兰圣火令',
+  '幻木宝镜',
+  '魔雾',
+  '饕餮扳指A',
+  '愚者项链',
+  '月之密铃',
+  '战鬼之心',
+  '真知之石',
+])
+
+const RANDOM_A_ACCESSORY_WEIGHTS: Record<string, number> = {
+  党魂军令: 15,
+  梵天纹章: 15,
+  封神结: 15,
+  海洋之心: 15,
+  烈神珠: 15,
+  太古项链: 15,
+  魔悲石: 5,
+  失乐魔羽: 5,
+}
+
 const DEFAULT_COST = 7
 const STEP_COST = 1
 const MAX_DEPTH = 8
@@ -426,9 +456,38 @@ function isExclusiveText(note: string): boolean {
   return /专属|只能|仅|专用|皮肤|任务所需/.test(note)
 }
 
+function stripLeadingNarration(expr: string): string {
+  return expr.replace(/^(?:但是|然而|不过|举例|比如|例如|说明|备注)[：:,，\s]*/g, '')
+}
+
+function stripLeadingFormulaPrefix(expr: string): string {
+  const trimmed = stripLeadingNarration(expr.trim())
+  const plusIndex = trimmed.indexOf('+')
+  if (plusIndex === -1) {
+    return trimmed
+  }
+
+  const lastDelimiter = Math.max(
+    trimmed.lastIndexOf('，', plusIndex),
+    trimmed.lastIndexOf(',', plusIndex),
+    trimmed.lastIndexOf('：', plusIndex),
+    trimmed.lastIndexOf(':', plusIndex),
+  )
+
+  if (lastDelimiter === -1) {
+    return trimmed
+  }
+
+  return trimmed.slice(lastDelimiter + 1)
+}
+
 function parseFormulaLine(rawLine: string, lineNumber: number): RecipeRule[] {
   const line = rawLine.trim()
   if (!line || !line.includes('=')) {
+    return []
+  }
+
+  if (/^说明：/.test(line)) {
     return []
   }
 
@@ -451,11 +510,11 @@ function parseFormulaLine(rawLine: string, lineNumber: number): RecipeRule[] {
   let ingredientExpr = ''
 
   if (!leftHasPlus && rightHasPlus) {
-    outputExpr = left
-    ingredientExpr = right
+    outputExpr = stripLeadingNarration(left)
+    ingredientExpr = stripLeadingFormulaPrefix(right)
   } else if (leftHasPlus && !rightHasPlus) {
-    outputExpr = right
-    ingredientExpr = left
+    outputExpr = stripLeadingNarration(right)
+    ingredientExpr = stripLeadingFormulaPrefix(left)
   } else {
     return []
   }
@@ -530,6 +589,16 @@ function parseFormulaLine(rawLine: string, lineNumber: number): RecipeRule[] {
     .filter((rule): rule is RecipeRule => rule !== null)
 }
 
+function stripExplanationSection(rawText: string): string {
+  const lines = rawText.split(/\r?\n/)
+  const markerIndex = lines.findIndex((line) => line.trim().startsWith('说明：'))
+  if (markerIndex === -1) {
+    return rawText
+  }
+
+  return lines.slice(0, markerIndex).join('\n')
+}
+
 function detectRarityLetter(name: string): Nullable<string> {
   if (!name) {
     return null
@@ -551,6 +620,108 @@ function detectRarityLetter(name: string): Nullable<string> {
   }
 
   return null
+}
+
+function parseRandomOutputToken(name: string): { rarity: string; slot: ItemSlot; label: string } | null {
+  const match = name.match(/^随机([SGFEDCBA])(战武|法武|衣|鞋|饰|饰品)$/)
+  if (!match) {
+    return null
+  }
+
+  const rarity = match[1]
+  const rawSlot = match[2]
+  const slot = rawSlot === '饰品' ? '饰' : (rawSlot as ItemSlot)
+  const label = `随机${rarity}${rawSlot === '饰品' ? '饰' : rawSlot}`
+  return { rarity, slot, label }
+}
+
+function isRandomAccessoryExcluded(name: string): boolean {
+  return RANDOM_A_ACCESSORY_EXCLUDES.has(name) || RANDOM_A_ACCESSORY_UNIQUES.has(name)
+}
+
+function buildRandomOutputDistribution(
+  rarity: string,
+  slot: ItemSlot,
+  itemMetasByName: Map<string, ItemMeta[]>,
+): Array<{ name: string; weight: number }> {
+  if (rarity === 'A' && slot === '饰') {
+    const weighted: Array<{ name: string; weight: number }> = []
+    for (const [name, weight] of Object.entries(RANDOM_A_ACCESSORY_WEIGHTS)) {
+      const metas = itemMetasByName.get(name) || []
+      if (metas.some((meta) => meta.rarity === rarity && meta.slot === slot)) {
+        weighted.push({ name, weight })
+      }
+    }
+
+    if (weighted.length) {
+      return weighted
+    }
+  }
+
+  const pool = new Set<string>()
+
+  for (const metas of itemMetasByName.values()) {
+    for (const meta of metas) {
+      if (meta.rarity !== rarity) {
+        continue
+      }
+
+      if (meta.slot !== slot) {
+        continue
+      }
+
+      if (rarity === 'A' && slot === '饰' && isRandomAccessoryExcluded(meta.name)) {
+        continue
+      }
+
+      pool.add(meta.name)
+    }
+  }
+
+  return [...pool.values()]
+    .sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'))
+    .map((name) => ({ name, weight: 1 }))
+}
+
+function expandRandomOutputRules(
+  rules: RecipeRule[],
+  itemMetasByName: Map<string, ItemMeta[]>,
+): RecipeRule[] {
+  const expanded: RecipeRule[] = []
+
+  for (const rule of rules) {
+    const randomInfo = parseRandomOutputToken(rule.output)
+    if (!randomInfo) {
+      expanded.push(rule)
+      continue
+    }
+
+    const pool = buildRandomOutputDistribution(randomInfo.rarity, randomInfo.slot, itemMetasByName)
+    if (!pool.length) {
+      expanded.push(rule)
+      continue
+    }
+
+    const totalWeight = pool.reduce((sum, entry) => sum + entry.weight, 0)
+    const hasWeights = pool.some((entry) => entry.weight !== 1)
+    const optionList = pool.map((entry) => entry.name).join('、')
+    const randomLabel = `${randomInfo.label}(${pool.length}选1${hasWeights ? ',权重' : ''})`
+    const randomNote = `${randomLabel}【可选项:${optionList}】`
+    const note = [rule.note || '', randomNote].filter(Boolean).join('；')
+
+    pool.forEach((entry, index) => {
+      const perChance = totalWeight > 0 ? rule.chance * (entry.weight / totalWeight) : rule.chance
+      expanded.push({
+        ...rule,
+        id: `${rule.id}-rand-${index}`,
+        output: entry.name,
+        chance: perChance,
+        note,
+      })
+    })
+  }
+
+  return expanded
 }
 
 function getBaseTokenCost(name: string, quantity = 1): number {
@@ -993,12 +1164,16 @@ function buildEnumerator(
 }
 
 export function createRecipeEngine(rawText: string): RecipeEngine {
-  const lines = rawText.split(/\r?\n/)
+  const formulaText = stripExplanationSection(rawText)
+  const lines = formulaText.split(/\r?\n/)
+  const itemMetasByName = parseItemCatalog(formulaText)
+
   const parsedRules = lines.flatMap((line, index) => parseFormulaLine(line, index + 1))
   const extraRules = EXTRA_FORMULA_LINES.flatMap((line, index) =>
     parseFormulaLine(line, lines.length + index + 1),
   )
-  const rules = dedupeRules([...parsedRules, ...extraRules])
+  const expandedRules = expandRandomOutputRules([...parsedRules, ...extraRules], itemMetasByName)
+  const rules = dedupeRules(expandedRules)
 
   const rulesByOutput = new Map<string, RecipeRule[]>()
   const outputNames = new Set<string>()
@@ -1020,7 +1195,6 @@ export function createRecipeEngine(rawText: string): RecipeEngine {
     }
   }
 
-  const itemMetasByName = parseItemCatalog(rawText)
   for (const itemName of itemMetasByName.keys()) {
     allNames.add(itemName)
   }
