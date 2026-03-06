@@ -149,6 +149,7 @@ export interface ItemMeta {
   category: ItemCategory
   slot: ItemSlot
   badge: string
+  special: 'unique' | 'scroll' | 'once' | ''  // 特殊标记：唯一、卷轴合成、一次
 }
 
 export interface FormulaInfo {
@@ -191,6 +192,18 @@ export interface RecipeEngine {
   getItemMetas: (itemName: string) => ItemMeta[]
   getFormulaInfos: (itemName: string) => FormulaInfo[]
   queryItems: (input: string) => ItemQueryResult
+}
+
+function extractSpecialMark(value: string): {name: string; special: 'unique' | 'scroll' | 'once' | ''} {
+  const match = (value || '').match(/^(.+?)\((唯一|卷轴合成|一次)\)/)
+  if (match) {
+    const specialMap = {'唯一': 'unique', '卷轴合成': 'scroll', '一次': 'once'} as const
+    return {
+      name: match[1],
+      special: specialMap[match[2] as keyof typeof specialMap]
+    }
+  }
+  return {name: value, special: ''}
 }
 
 function cleanText(value: string): string {
@@ -858,11 +871,24 @@ function mapSlot(category: ItemCategory, attribute: ItemAttribute): ItemSlot {
 }
 
 function buildBadge(meta: ItemMeta): string {
+  let base = ''
+  
   if (meta.category === '武器类') {
-    return `${meta.rarity}${meta.slot}`
+    base = `${meta.rarity}${meta.slot}`
+  } else {
+    base = `${meta.rarity}${meta.attribute}`
   }
-
-  return `${meta.rarity}${meta.attribute}`
+  
+  // 添加特殊标记图标（右下标）
+  if (meta.special === 'unique') {
+    return base + '₍唯一₎'
+  } else if (meta.special === 'scroll') {
+    return base + '₍卷轴₎'
+  } else if (meta.special === 'once') {
+    return base + '₍一次₎'
+  }
+  
+  return base
 }
 
 function parseItemCatalog(rawText: string): Map<string, ItemMeta[]> {
@@ -898,7 +924,8 @@ function parseItemCatalog(rawText: string): Map<string, ItemMeta[]> {
       .filter((item) => item !== '无')
 
     for (const name of values) {
-      const normalizedName = cleanToken(name)
+      const { name: cleanedName, special } = extractSpecialMark(name)
+      const normalizedName = cleanToken(cleanedName)
       if (!normalizedName) {
         continue
       }
@@ -910,6 +937,7 @@ function parseItemCatalog(rawText: string): Map<string, ItemMeta[]> {
         category,
         slot: mapSlot(category, currentAttribute),
         badge: '',
+        special,
       }
 
       meta.badge = buildBadge(meta)
