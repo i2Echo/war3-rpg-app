@@ -107,6 +107,7 @@ interface RecipeRule {
   chance: number
   note: string
   exclusive: boolean
+  randomOutput: boolean
 }
 
 interface InternalRouteIngredient {
@@ -546,6 +547,9 @@ function parseFormulaLine(rawLine: string, lineNumber: number): RecipeRule[] {
     return []
   }
 
+  const isRandomOutput =
+    parsedOutputs.length > 1 || parsedOutputs.some((parsed) => /^随机/.test(parsed.name))
+
   const globalChance = extractGlobalChance(line)
   const globalNote = extractGlobalNote(`${outputExpr}，${ingredientExpr}`)
   const exclusionNote = extractExclusionNote(line)
@@ -574,6 +578,7 @@ function parseFormulaLine(rawLine: string, lineNumber: number): RecipeRule[] {
           chance: segmentChance,
           note,
           exclusive: isExclusiveText(note),
+          randomOutput: isRandomOutput,
         }
       })
       .filter((rule): rule is RecipeRule => rule !== null)
@@ -598,6 +603,7 @@ function parseFormulaLine(rawLine: string, lineNumber: number): RecipeRule[] {
         chance,
         note,
         exclusive: isExclusiveText(note),
+        randomOutput: isRandomOutput,
       }
     })
     .filter((rule): rule is RecipeRule => rule !== null)
@@ -669,7 +675,7 @@ function buildRandomOutputDistribution(
     const weighted: Array<{ name: string; weight: number }> = []
     for (const [name, weight] of Object.entries(RANDOM_A_ACCESSORY_WEIGHTS)) {
       const metas = itemMetasByName.get(name) || []
-      if (metas.some((meta) => meta.rarity === rarity && meta.slot === slot)) {
+      if (metas.some((meta) => meta.rarity === rarity && meta.slot === slot && !meta.special)) {
         weighted.push({ name, weight })
       }
     }
@@ -688,6 +694,10 @@ function buildRandomOutputDistribution(
       }
 
       if (meta.slot !== slot) {
+        continue
+      }
+
+      if (meta.special) {
         continue
       }
 
@@ -1068,6 +1078,60 @@ function ingredientSlotsSignature(ingredientSlots: IngredientSlot[]): string {
     .join('+')
 }
 
+function hasSpecialTagOutput(itemName: string, itemMetasByName: Map<string, ItemMeta[]>): boolean {
+  const metas = itemMetasByName.get(itemName) || []
+  return metas.some((meta) => !!meta.special)
+}
+
+function filterRandomSpecialOutputRules(
+  rules: RecipeRule[],
+  itemMetasByName: Map<string, ItemMeta[]>,
+): RecipeRule[] {
+  const grouped = new Map<string, RecipeRule[]>()
+
+  for (const rule of rules) {
+    const key = `${rule.source}|${ingredientSlotsSignature(rule.ingredientSlots)}`
+    if (!grouped.has(key)) {
+      grouped.set(key, [])
+    }
+    grouped.get(key)?.push(rule)
+  }
+
+  const filtered: RecipeRule[] = []
+
+  for (const groupRules of grouped.values()) {
+    if (!groupRules.some((rule) => rule.randomOutput)) {
+      filtered.push(...groupRules)
+      continue
+    }
+
+    const kept = groupRules.filter((rule) => !hasSpecialTagOutput(rule.output, itemMetasByName))
+    if (!kept.length) {
+      continue
+    }
+
+    if (kept.length === groupRules.length) {
+      filtered.push(...kept)
+      continue
+    }
+
+    const totalChance = kept.reduce((sum, rule) => sum + Math.max(rule.chance, 0), 0)
+    if (totalChance <= 0) {
+      filtered.push(...kept)
+      continue
+    }
+
+    filtered.push(
+      ...kept.map((rule) => ({
+        ...rule,
+        chance: Number(((rule.chance / totalChance) * 100).toFixed(4)),
+      })),
+    )
+  }
+
+  return filtered
+}
+
 function dedupeRules(rules: RecipeRule[]): RecipeRule[] {
   const map = new Map<string, RecipeRule>()
 
@@ -1212,7 +1276,8 @@ export function createRecipeEngine(rawText: string): RecipeEngine {
     parseFormulaLine(line, lines.length + index + 1),
   )
   const expandedRules = expandRandomOutputRules([...parsedRules, ...extraRules], itemMetasByName)
-  const rules = dedupeRules(expandedRules)
+  const filteredRandomRules = filterRandomSpecialOutputRules(expandedRules, itemMetasByName)
+  const rules = dedupeRules(filteredRandomRules)
 
   const rulesByOutput = new Map<string, RecipeRule[]>()
   const outputNames = new Set<string>()

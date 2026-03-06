@@ -3,6 +3,11 @@
 """
 同步炼化公式数据：从Markdown文件提取纯文本内容到txt和ts文件
 过滤Markdown格式符号，保留纯内容
+
+规则对齐说明：
+- 带特殊标签（唯一/卷轴合成/一次）的物品不作为随机公式产物；
+- 但可作为明确公式中的炼化材料；
+- 本脚本负责数据清洗与同步，随机产物过滤由前端解析引擎执行。
 """
 
 import re
@@ -10,6 +15,7 @@ import json
 from pathlib import Path
 
 EXPLANATION_MARKER_PATTERN = re.compile(r'说明[（(]以下部分不做炼化公式正则解析')
+SPECIAL_SUFFIX_PATTERN = re.compile(r'\((唯一|卷轴合成|一次)\)')
 
 def strip_markdown_formatting(text):
     """
@@ -68,6 +74,15 @@ def strip_non_parse_explanation(text):
         return text, False
 
     return '\n'.join(lines[:marker_index]).rstrip() + '\n', True
+
+
+def has_special_suffix(item_name):
+    """
+    判断物品名是否带特殊后缀标记。
+    """
+    if not item_name:
+        return False
+    return bool(SPECIAL_SUFFIX_PATTERN.search(item_name))
 
 def sync_formulas():
     """主同步函数"""
