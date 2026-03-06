@@ -448,7 +448,11 @@ function setDiduModalScrollLock(locked: boolean) {
   document.body.classList.toggle('body-scroll-lock', locked)
 }
 
-watch(diduModalOpen, (open) => {
+watch(diduModalOpen, (open: boolean) => {
+  setDiduModalScrollLock(open)
+})
+
+watch(modalOpen, (open: boolean) => {
   setDiduModalScrollLock(open)
 })
 
