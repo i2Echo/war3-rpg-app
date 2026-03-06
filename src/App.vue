@@ -359,6 +359,14 @@ function quickFill(item: string) {
 
 function clearInput() {
   targetItem.value = ''
+  searchedKeyword.value = ''
+  routeResults.value = []
+  truncated.value = false
+  synthesisHistory.value = []
+  attributeItems.value = []
+  attributeFormulas.value = []
+  queriedItems.value = []
+  itemQueryTip.value = ''
 }
 
 function onSubmit() {
