@@ -14,3 +14,17 @@ npm run dev
 ```bash
 npm run build
 ```
+
+## 访问统计（无自建后端）
+
+项目已接入不蒜子（Busuanzi）前端统计脚本：
+
+- 页面总访问量（PV）
+- 独立访客数（UV）
+
+实现方式：
+
+- 在 `index.html` 引入 `busuanzi.pure.mini.js`
+- 在 `src/App.vue` 的信息栏展示统计值
+
+如果不需要统计，删除 `index.html` 中对应脚本即可。

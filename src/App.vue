@@ -533,9 +533,19 @@ initializeDiduQuestions()
           <h1>西方世界的劫难3 · 炼化公式查询小助手</h1>
           <p>支持查炼化、查属性、查物品；具体物品可下钻，泛化条件可弹窗查看对应物品。</p>
         </div>
-        <button type="button" class="didu-quiz-btn" @click="openDiduModal" title="帝都答题">
-          帝都答题
-        </button>
+        <div class="hero-actions">
+          <div class="visit-stats">
+            <span id="busuanzi_container_site_pv" class="visit-stat">
+              总访问：<span id="busuanzi_value_site_pv"></span>
+            </span>
+            <span id="busuanzi_container_site_uv" class="visit-stat">
+              访客数：<span id="busuanzi_value_site_uv"></span>
+            </span>
+          </div>
+          <button type="button" class="didu-quiz-btn" @click="openDiduModal" title="帝都答题">
+            帝都答题
+          </button>
+        </div>
       </header>
 
       <form class="search-bar" @submit.prevent="onSubmit">

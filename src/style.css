@@ -66,6 +66,23 @@ body.body-scroll-lock {
   font-size: 14px;
 }
 
+.hero-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.visit-stats {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  color: #9ca3af;
+  font-size: 11px;
+}
+
 .search-bar {
   margin-top: 16px;
   display: grid;
@@ -170,6 +187,15 @@ body.body-scroll-lock {
   gap: 12px;
   color: #6b7280;
   font-size: 13px;
+}
+
+.visit-stat {
+  white-space: nowrap;
+}
+
+#busuanzi_container_site_pv,
+#busuanzi_container_site_uv {
+  display: none;
 }
 
 .result-block {
@@ -651,6 +677,16 @@ body.body-scroll-lock {
 
   .hero h1 {
     font-size: 18px;
+  }
+
+  .hero-actions {
+    width: 100%;
+    align-items: stretch;
+  }
+
+  .visit-stats {
+    justify-content: flex-start;
+    font-size: 10px;
   }
 
   .didu-quiz-btn {
