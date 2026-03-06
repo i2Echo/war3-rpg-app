@@ -423,6 +423,10 @@ body.body-scroll-lock {
   padding-right: 24px;
 }
 
+.item-pill.has-special-badge {
+  padding-right: 30px;
+}
+
 .item-pill[class*="rarity-text-"] {
   border-color: currentColor;
 }
@@ -459,6 +463,10 @@ body.body-scroll-lock {
 
 .tree-item.has-corner-badge {
   padding-right: 24px;
+}
+
+.tree-item.has-special-badge {
+  padding-right: 30px;
 }
 
 .tree-item[class*="rarity-text-"] {
@@ -502,6 +510,18 @@ body.body-scroll-lock {
   font-size: 7px;
   line-height: 1;
   transform: translateY(-48%);
+  background: #ffffff;
+  padding: 0 2px;
+}
+
+.item-badge.corner-bottom {
+  position: absolute;
+  right: 7px;
+  bottom: 0;
+  margin-left: 0;
+  font-size: 7px;
+  line-height: 1;
+  transform: translateY(48%);
   background: #ffffff;
   padding: 0 2px;
 }

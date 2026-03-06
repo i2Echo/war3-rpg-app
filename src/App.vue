@@ -50,6 +50,7 @@ const HIGH_FREQUENCY_ITEMS = [
   '天皇祭冠',
   '古代神铠',
   '阿修罗',
+  '奥姆幽刃',
   '雾幻云珠',
   '谛听天镯',
   '千棱幻玉',
@@ -90,6 +91,34 @@ const attributeSuggestions = computed(() => {
     .slice(0, 10)
 })
 
+function isScrollSynthesisItem(itemName: string): boolean {
+  if (!itemName) {
+    return false
+  }
+
+  return recipeEngine.getItemMetas(itemName).some((meta) => meta.special === 'scroll')
+}
+
+const currentRouteLabel = computed(() => {
+  if (!routeResults.value.length) {
+    return '炼化路线'
+  }
+
+  const isAllScrollRoutes = routeResults.value.every((route) => isScrollSynthesisItem(route.item))
+  return isAllScrollRoutes ? '卷轴合成路线' : '炼化路线'
+})
+
+const attributeFormulaTitle = computed(() => {
+  return isScrollSynthesisItem(searchedKeyword.value)
+    ? '相关卷轴合成路线（100%优先）'
+    : '相关炼化（100%优先）'
+})
+
+function getRouteTitle(route: RouteResult, index: number): string {
+  const label = isScrollSynthesisItem(route.item) ? '卷轴合成路线' : '炼化路线'
+  return `${label} ${index + 1}`
+}
+
 function formatRate(rate: number): string {
   if (Number.isInteger(rate)) {
     return `${rate}%`
@@ -111,6 +140,22 @@ function getSuccessRateClass(rate: number): string {
     return 'rate-low'
   }
   return 'rate-very-low'
+}
+
+function getSpecialText(special: ItemMeta['special']): string {
+  if (special === 'unique') {
+    return '唯一'
+  }
+
+  if (special === 'scroll') {
+    return '卷轴'
+  }
+
+  if (special === 'once') {
+    return '一次'
+  }
+
+  return ''
 }
 
 function isDowngradeWarning(note: string): boolean {
@@ -550,14 +595,14 @@ initializeDiduQuestions()
       <section v-if="searchedKeyword && activeTab === 'synthesis'" class="result-block">
         <div class="result-title">
           <h2>查询结果：{{ searchedKeyword }}</h2>
-          <span v-if="routeResults.length">共 {{ routeResults.length }} 条炼化路线</span>
+          <span v-if="routeResults.length">共 {{ routeResults.length }} 条{{ currentRouteLabel }}</span>
         </div>
 
         <p v-if="truncated" class="warn">
-          炼化路线数量过多，已按代价排序后截取前 {{ routeResults.length }} 条。
+          {{ currentRouteLabel }}数量过多，已按代价排序后截取前 {{ routeResults.length }} 条。
         </p>
 
-        <p v-if="!routeResults.length" class="empty">未找到该目标的可用炼化路线。</p>
+        <p v-if="!routeResults.length" class="empty">未找到该目标的可用{{ currentRouteLabel }}。</p>
 
         <div v-if="!routeResults.length && fuzzyMatches.length" class="fuzzy">
           <span>你可能想查：</span>
@@ -580,7 +625,7 @@ initializeDiduQuestions()
             :expand-children="false"
           />
           <header>
-            <h3 class="synthesis-route-title">炼化路线 {{ index + 1 }}</h3>
+            <h3 class="synthesis-route-title">{{ getRouteTitle(route, index) }}</h3>
             <div class="tags">
               <span>代价：{{ route.cost }}</span>
               <span>步骤：{{ route.steps }}</span>
@@ -654,7 +699,7 @@ initializeDiduQuestions()
           </div>
 
           <div v-if="attributeFormulas.length" class="formula-info">
-            <h4>相关炼化（100%优先）</h4>
+            <h4>{{ attributeFormulaTitle }}</h4>
             <ul class="note-list">
               <li v-for="(info, idx) in attributeFormulas" :key="`${info.output}-${idx}`">
                 {{ info.output }} = {{ info.ingredientText }}
@@ -705,6 +750,7 @@ initializeDiduQuestions()
             :class="[
               'item-pill',
               { 'has-corner-badge': item.rarity !== 'G' },
+              { 'has-special-badge': !!item.special },
               item.rarity !== 'G' ? `rarity-text-${item.rarity}` : '',
             ]"
             @click="quickFill(item.name)"
@@ -714,6 +760,12 @@ initializeDiduQuestions()
               :class="['item-badge', 'corner', `rarity-text-${item.rarity}`]"
             >
               {{ item.badge }}
+            </span>
+            <span
+              v-if="item.special"
+              :class="['item-badge', 'corner-bottom', item.rarity !== 'G' ? `rarity-text-${item.rarity}` : '']"
+            >
+              {{ getSpecialText(item.special) }}
             </span>
             {{ item.name }}
           </button>
@@ -736,6 +788,7 @@ initializeDiduQuestions()
             :class="[
               'item-pill',
               { 'has-corner-badge': item.rarity !== 'G' },
+              { 'has-special-badge': !!item.special },
               item.rarity !== 'G' ? `rarity-text-${item.rarity}` : '',
             ]"
             @click="pickModalItem(item.name)"
@@ -745,6 +798,12 @@ initializeDiduQuestions()
               :class="['item-badge', 'corner', `rarity-text-${item.rarity}`]"
             >
               {{ item.badge }}
+            </span>
+            <span
+              v-if="item.special"
+              :class="['item-badge', 'corner-bottom', item.rarity !== 'G' ? `rarity-text-${item.rarity}` : '']"
+            >
+              {{ getSpecialText(item.special) }}
             </span>
             {{ item.name }}
           </button>

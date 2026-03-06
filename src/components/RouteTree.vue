@@ -19,6 +19,7 @@ interface TokenView {
   queryToken?: string
   badgeText?: string
   badgeRarity?: string
+  specialText?: string
 }
 
 export default defineComponent({
@@ -102,7 +103,10 @@ export default defineComponent({
         type="button"
         :class="[
           'tree-item',
-          { 'has-corner-badge': !!getTokenView(node.item).badgeText },
+          {
+            'has-corner-badge': !!getTokenView(node.item).badgeText,
+            'has-special-badge': !!getTokenView(node.item).specialText,
+          },
           getTokenView(node.item).badgeRarity ? `rarity-text-${getTokenView(node.item).badgeRarity}` : '',
         ]"
         @click="handleTokenClick(node.item)"
@@ -118,13 +122,26 @@ export default defineComponent({
         >
           {{ getTokenView(node.item).badgeText }}
         </span>
+        <span
+          v-if="getTokenView(node.item).specialText"
+          :class="[
+            'item-badge',
+            'corner-bottom',
+            getTokenView(node.item).badgeRarity ? `rarity-text-${getTokenView(node.item).badgeRarity}` : '',
+          ]"
+        >
+          {{ getTokenView(node.item).specialText }}
+        </span>
       </button>
       <span
         v-else
         :class="[
           'tree-item',
           'is-static',
-          { 'has-corner-badge': !!getTokenView(node.item).badgeText },
+          {
+            'has-corner-badge': !!getTokenView(node.item).badgeText,
+            'has-special-badge': !!getTokenView(node.item).specialText,
+          },
           getTokenView(node.item).badgeRarity ? `rarity-text-${getTokenView(node.item).badgeRarity}` : '',
         ]"
       >
@@ -139,6 +156,16 @@ export default defineComponent({
         >
           {{ getTokenView(node.item).badgeText }}
         </span>
+        <span
+          v-if="getTokenView(node.item).specialText"
+          :class="[
+            'item-badge',
+            'corner-bottom',
+            getTokenView(node.item).badgeRarity ? `rarity-text-${getTokenView(node.item).badgeRarity}` : '',
+          ]"
+        >
+          {{ getTokenView(node.item).specialText }}
+        </span>
       </span>
 
       <template v-if="node.ruleId">
@@ -150,7 +177,10 @@ export default defineComponent({
             :class="[
               'tree-item',
               'is-ingredient',
-              { 'has-corner-badge': !!getTokenView(ingredient.name).badgeText },
+              {
+                'has-corner-badge': !!getTokenView(ingredient.name).badgeText,
+                'has-special-badge': !!getTokenView(ingredient.name).specialText,
+              },
               getTokenView(ingredient.name).badgeRarity
                 ? `rarity-text-${getTokenView(ingredient.name).badgeRarity}`
                 : '',
@@ -170,6 +200,18 @@ export default defineComponent({
             >
               {{ getTokenView(ingredient.name).badgeText }}
             </span>
+            <span
+              v-if="getTokenView(ingredient.name).specialText"
+              :class="[
+                'item-badge',
+                'corner-bottom',
+                getTokenView(ingredient.name).badgeRarity
+                  ? `rarity-text-${getTokenView(ingredient.name).badgeRarity}`
+                  : '',
+              ]"
+            >
+              {{ getTokenView(ingredient.name).specialText }}
+            </span>
           </button>
           <span
             v-else
@@ -177,7 +219,10 @@ export default defineComponent({
               'tree-item',
               'is-ingredient',
               'is-static',
-              { 'has-corner-badge': !!getTokenView(ingredient.name).badgeText },
+              {
+                'has-corner-badge': !!getTokenView(ingredient.name).badgeText,
+                'has-special-badge': !!getTokenView(ingredient.name).specialText,
+              },
               getTokenView(ingredient.name).badgeRarity
                 ? `rarity-text-${getTokenView(ingredient.name).badgeRarity}`
                 : '',
@@ -195,6 +240,18 @@ export default defineComponent({
               ]"
             >
               {{ getTokenView(ingredient.name).badgeText }}
+            </span>
+            <span
+              v-if="getTokenView(ingredient.name).specialText"
+              :class="[
+                'item-badge',
+                'corner-bottom',
+                getTokenView(ingredient.name).badgeRarity
+                  ? `rarity-text-${getTokenView(ingredient.name).badgeRarity}`
+                  : '',
+              ]"
+            >
+              {{ getTokenView(ingredient.name).specialText }}
             </span>
           </span>
           <span v-if="index !== node.ingredients.length - 1" class="tree-plus">+</span>

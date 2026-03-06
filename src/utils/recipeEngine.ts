@@ -149,7 +149,7 @@ export interface ItemMeta {
   category: ItemCategory
   slot: ItemSlot
   badge: string
-  special: 'unique' | 'scroll' | 'once' | ''  // 特殊标记：唯一、卷轴合成、一次
+  special: 'unique' | 'scroll' | 'once' | ''
 }
 
 export interface FormulaInfo {
@@ -167,6 +167,7 @@ export interface TokenView {
   queryToken?: string
   badgeText?: string
   badgeRarity?: string
+  specialText?: string
 }
 
 interface QueryDescriptor {
@@ -604,7 +605,14 @@ function parseFormulaLine(rawLine: string, lineNumber: number): RecipeRule[] {
 
 function stripExplanationSection(rawText: string): string {
   const lines = rawText.split(/\r?\n/)
-  const markerIndex = lines.findIndex((line) => line.trim().startsWith('说明：'))
+  const markerIndex = lines.findIndex((line) => {
+    const normalized = line.trim().replace(/^#+\s*/, '')
+    return (
+      normalized.startsWith('说明：') ||
+      normalized.startsWith('说明:') ||
+      /说明[（(]以下部分不做炼化公式正则解析/.test(normalized)
+    )
+  })
   if (markerIndex === -1) {
     return rawText
   }
@@ -871,24 +879,27 @@ function mapSlot(category: ItemCategory, attribute: ItemAttribute): ItemSlot {
 }
 
 function buildBadge(meta: ItemMeta): string {
-  let base = ''
-  
   if (meta.category === '武器类') {
-    base = `${meta.rarity}${meta.slot}`
-  } else {
-    base = `${meta.rarity}${meta.attribute}`
+    return `${meta.rarity}${meta.slot}`
   }
-  
-  // 添加特殊标记图标（右下标）
-  if (meta.special === 'unique') {
-    return base + '₍唯一₎'
-  } else if (meta.special === 'scroll') {
-    return base + '₍卷轴₎'
-  } else if (meta.special === 'once') {
-    return base + '₍一次₎'
+
+  return `${meta.rarity}${meta.attribute}`
+}
+
+function formatSpecialText(special: ItemMeta['special']): string | undefined {
+  if (special === 'unique') {
+    return '唯一'
   }
-  
-  return base
+
+  if (special === 'scroll') {
+    return '卷轴'
+  }
+
+  if (special === 'once') {
+    return '一次'
+  }
+
+  return undefined
 }
 
 function parseItemCatalog(rawText: string): Map<string, ItemMeta[]> {
@@ -1486,6 +1497,7 @@ export function createRecipeEngine(rawText: string): RecipeEngine {
         queryToken: normalized,
         badgeText: primary.rarity === 'G' ? undefined : primary.badge,
         badgeRarity: primary.rarity === 'G' ? undefined : primary.rarity,
+        specialText: formatSpecialText(primary.special),
       }
     }
 

@@ -9,6 +9,8 @@ import re
 import json
 from pathlib import Path
 
+EXPLANATION_MARKER_PATTERN = re.compile(r'说明[（(]以下部分不做炼化公式正则解析')
+
 def strip_markdown_formatting(text):
     """
     去除Markdown格式符号，保留纯文本内容
@@ -49,6 +51,24 @@ def strip_markdown_formatting(text):
     
     return '\n'.join(lines)
 
+
+def strip_non_parse_explanation(text):
+    """
+    裁剪文档末尾说明区块：该区块仅用于人工说明，不参与公式正则解析。
+    """
+    lines = text.split('\n')
+    marker_index = -1
+    for index, line in enumerate(lines):
+        normalized = line.strip()
+        if EXPLANATION_MARKER_PATTERN.search(normalized):
+            marker_index = index
+            break
+
+    if marker_index == -1:
+        return text, False
+
+    return '\n'.join(lines[:marker_index]).rstrip() + '\n', True
+
 def sync_formulas():
     """主同步函数"""
     # 定义路径
@@ -70,6 +90,11 @@ def sync_formulas():
     # 去除Markdown格式符号
     print('处理Markdown格式...')
     plain_content = strip_markdown_formatting(md_content)
+
+    # 说明区块不参与公式解析，防止示例公式污染解析数据
+    plain_content, trimmed = strip_non_parse_explanation(plain_content)
+    if trimmed:
+        print('检测到“说明（以下部分不做炼化公式正则解析）”区块，已从解析数据中裁剪。')
     
     # 写入txt文件
     print(f'写入txt文件: {txt_file}')
