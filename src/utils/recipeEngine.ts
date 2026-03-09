@@ -252,12 +252,12 @@ function parseQuantity(token: string): IngredientChoice {
 
 function expandABToken(token: string): string[] {
   const normalized = cleanToken(token)
-  const match = normalized.match(/^([SGFEDCBA]{2,})(.+)$/)
+  const match = normalized.match(/^([SGFEDCBA]{2,})(.+)$/i)
   if (!match) {
     return [normalized]
   }
 
-  const raritySet = match[1].split('')
+  const raritySet = match[1].toUpperCase().split('')
   const suffix = match[2]
 
   if (!suffix || raritySet.length < 2) {
@@ -269,19 +269,19 @@ function expandABToken(token: string): string[] {
 
 function parseRaritySuffixToken(token: string): Nullable<{ rarity: string; suffix: string }> {
   const normalized = cleanToken(token)
-  const match = normalized.match(/^([SGFEDCBA]{1,})(.+)$/)
+  const match = normalized.match(/^([SGFEDCBA]{1,})(.+)$/i)
   if (!match || !match[2]) {
     return null
   }
 
   return {
-    rarity: match[1],
+    rarity: match[1].toUpperCase(),
     suffix: match[2],
   }
 }
 
 function isRarityOnlyToken(token: string): boolean {
-  return /^[SGFEDCBA]{1,}$/.test(cleanToken(token))
+  return /^[SGFEDCBA]{1,}$/i.test(cleanToken(token))
 }
 
 function isSharedSuffixToken(token: string): boolean {
@@ -631,31 +631,31 @@ function detectRarityLetter(name: string): Nullable<string> {
     return null
   }
 
-  const typePrefix = name.match(/^([SGFEDCBA])(?:战武|法武|衣|鞋|饰|智力|力量|敏捷|全能|任意)/)
+  const typePrefix = name.match(/^([SGFEDCBA])(?:战武|法武|衣|鞋|饰|智力|力量|敏捷|全能|任意)/i)
   if (typePrefix) {
-    return typePrefix[1]
+    return typePrefix[1].toUpperCase()
   }
 
-  const randomPrefix = name.match(/随机([SGFEDCBA])/)
+  const randomPrefix = name.match(/随机([SGFEDCBA])/i)
   if (randomPrefix) {
-    return randomPrefix[1]
+    return randomPrefix[1].toUpperCase()
   }
 
-  const suffix = name.match(/([SGFEDCBA])$/)
+  const suffix = name.match(/([SGFEDCBA])$/i)
   if (suffix) {
-    return suffix[1]
+    return suffix[1].toUpperCase()
   }
 
   return null
 }
 
 function parseRandomOutputToken(name: string): { rarity: string; slot: ItemSlot; label: string } | null {
-  const match = name.match(/^随机([SGFEDCBA])(战武|法武|衣|鞋|饰|饰品)$/)
+  const match = name.match(/^随机([SGFEDCBA])(战武|法武|衣|鞋|饰|饰品)$/i)
   if (!match) {
     return null
   }
 
-  const rarity = match[1]
+  const rarity = match[1].toUpperCase()
   const rawSlot = match[2]
   const slot = rawSlot === '饰品' ? '饰' : (rawSlot as ItemSlot)
   const label = `随机${rarity}${rawSlot === '饰品' ? '饰' : rawSlot}`
@@ -1005,43 +1005,47 @@ function normalizeTokenDisplay(token: string): string {
 function parseQueryDescriptor(input: string): QueryDescriptor {
   const cleaned = cleanToken(input).replace(/^随机/, '')
 
-  const pureRarityMatch = cleaned.match(/^([SGFEDCBA])$/)
+  const pureRarityMatch = cleaned.match(/^([SGFEDCBA])$/i)
   if (pureRarityMatch) {
+    const rarity = pureRarityMatch[1].toUpperCase()
     return {
       mode: 'any',
-      rarity: pureRarityMatch[1],
-      raw: `${pureRarityMatch[1]}任意`,
+      rarity,
+      raw: `${rarity}任意`,
     }
   }
 
-  const anyMatch = cleaned.match(/^([SGFEDCBA])任意$/)
+  const anyMatch = cleaned.match(/^([SGFEDCBA])任意$/i)
   if (anyMatch) {
+    const rarity = anyMatch[1].toUpperCase()
     return {
       mode: 'any',
-      rarity: anyMatch[1],
-      raw: cleaned,
+      rarity,
+      raw: `${rarity}任意`,
     }
   }
 
-  const attrMatch = cleaned.match(/^([SGFEDCBA])(力量|敏捷|智力|全能)$/)
+  const attrMatch = cleaned.match(/^([SGFEDCBA])(力量|敏捷|智力|全能)$/i)
   if (attrMatch) {
+    const rarity = attrMatch[1].toUpperCase()
     return {
       mode: 'attribute',
-      rarity: attrMatch[1],
+      rarity,
       attribute: attrMatch[2] as ItemAttribute,
-      raw: cleaned,
+      raw: `${rarity}${attrMatch[2]}`,
     }
   }
 
-  const slotMatch = cleaned.match(/^([SGFEDCBA])(战武|法武|衣|鞋|饰|饰品)$/)
+  const slotMatch = cleaned.match(/^([SGFEDCBA])(战武|法武|衣|鞋|饰|饰品)$/i)
   if (slotMatch) {
+    const rarity = slotMatch[1].toUpperCase()
     const rawSlot = slotMatch[2]
     const slot = rawSlot === '饰品' ? '饰' : (rawSlot as ItemSlot)
     return {
       mode: 'slot',
-      rarity: slotMatch[1],
+      rarity,
       slot,
-      raw: cleaned,
+      raw: `${rarity}${rawSlot}`,
     }
   }
 
@@ -1303,8 +1307,33 @@ export function createRecipeEngine(rawText: string): RecipeEngine {
     allNames.add(itemName)
   }
 
+  const canonicalNameMap = new Map<string, string>()
+  const registerCanonicalName = (name: string) => {
+    const key = name.toLocaleLowerCase()
+    if (!canonicalNameMap.has(key)) {
+      canonicalNameMap.set(key, name)
+    }
+  }
+
+  for (const name of allNames) {
+    registerCanonicalName(name)
+  }
+
+  for (const name of itemMetasByName.keys()) {
+    registerCanonicalName(name)
+  }
+
+  function resolveCanonicalName(input: string): string {
+    const normalized = normalizeItemName(input)
+    if (!normalized) {
+      return normalized
+    }
+
+    return canonicalNameMap.get(normalized.toLocaleLowerCase()) || normalized
+  }
+
   function getTokenRarityCost(token: string): Nullable<number> {
-    const normalized = normalizeItemName(token)
+    const normalized = resolveCanonicalName(token)
     const directRarity = detectRarityLetter(normalized)
 
     if (directRarity && RARITY_COST[directRarity]) {
@@ -1416,7 +1445,7 @@ export function createRecipeEngine(rawText: string): RecipeEngine {
   const enumerate = buildEnumerator(rulesByOutput, compareRoutePriority)
 
   function getItemMetas(itemName: string): ItemMeta[] {
-    const normalized = normalizeItemName(itemName)
+    const normalized = resolveCanonicalName(itemName)
     const list = itemMetasByName.get(normalized) || []
     return [...list].sort((a, b) => {
       if (a.rarity !== b.rarity) {
@@ -1428,7 +1457,7 @@ export function createRecipeEngine(rawText: string): RecipeEngine {
   }
 
   function queryItems(input: string): ItemQueryResult {
-    const normalized = normalizeItemName(input)
+    const normalized = resolveCanonicalName(input)
     const concrete = getItemMetas(normalized)
 
     if (concrete.length) {
@@ -1491,7 +1520,7 @@ export function createRecipeEngine(rawText: string): RecipeEngine {
   }
 
   function getFormulaInfos(itemName: string): FormulaInfo[] {
-    const normalized = normalizeItemName(itemName)
+    const normalized = resolveCanonicalName(itemName)
     const ruleList = rulesByOutput.get(normalized) || []
 
     const sortedRules = [...ruleList].sort((a, b) => {
@@ -1541,12 +1570,13 @@ export function createRecipeEngine(rawText: string): RecipeEngine {
   }
 
   function describeToken(token: string): TokenView {
-    const normalized = normalizeItemName(token)
+    const normalized = resolveCanonicalName(token)
 
-    const pureRarity = normalized.match(/^([SGFEDCBA])$/)
+    const pureRarity = normalized.match(/^([SGFEDCBA])$/i)
     if (pureRarity) {
+      const rarity = pureRarity[1].toUpperCase()
       return {
-        label: `${pureRarity[1]}任意`,
+        label: `${rarity}任意`,
         kind: 'any',
         clickable: false,
       }
@@ -1605,7 +1635,7 @@ export function createRecipeEngine(rawText: string): RecipeEngine {
     allNames: [...allNames].sort((a, b) => a.localeCompare(b, 'zh-Hans-CN')),
     itemNames: [...itemMetasByName.keys()].sort((a, b) => a.localeCompare(b, 'zh-Hans-CN')),
     findRoutes(target: string): RecipeSearchResult {
-      const normalizedTarget = normalizeItemName(target)
+      const normalizedTarget = resolveCanonicalName(target)
       if (!normalizedTarget) {
         return { routes: [], truncated: false }
       }

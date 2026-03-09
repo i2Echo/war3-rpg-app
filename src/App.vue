@@ -59,6 +59,10 @@ const HIGH_FREQUENCY_ITEMS = [
   '北斗炼日印',
 ]
 
+function includesIgnoreCase(source: string, keyword: string): boolean {
+  return source.toLocaleLowerCase().includes(keyword.toLocaleLowerCase())
+}
+
 const suggestions = computed(() => {
   const keyword = targetItem.value.trim()
   if (!keyword) {
@@ -67,7 +71,7 @@ const suggestions = computed(() => {
   }
 
   return recipeEngine.allNames
-    .filter((name) => name.includes(keyword))
+    .filter((name) => includesIgnoreCase(name, keyword))
     .slice(0, 16)
 })
 
@@ -77,7 +81,7 @@ const fuzzyMatches = computed(() => {
   }
 
   return recipeEngine.outputList
-    .filter((name) => name.includes(searchedKeyword.value))
+    .filter((name) => includesIgnoreCase(name, searchedKeyword.value))
     .slice(0, 10)
 })
 
@@ -87,7 +91,7 @@ const attributeSuggestions = computed(() => {
   }
 
   return recipeEngine.itemNames
-    .filter((name) => name.includes(searchedKeyword.value))
+    .filter((name) => includesIgnoreCase(name, searchedKeyword.value))
     .slice(0, 10)
 })
 
