@@ -97,6 +97,7 @@ interface IngredientChoice {
 
 interface IngredientSlot {
   alternatives: IngredientChoice[]
+  excludes: string[]
 }
 
 interface RecipeRule {
@@ -184,6 +185,13 @@ export interface ItemQueryResult {
   items: ItemMeta[]
 }
 
+export interface ItemQueryContext {
+  output?: string
+  ingredientTokens?: string[]
+  clickedIndex?: number
+  ruleId?: string
+}
+
 export interface RecipeEngine {
   ruleCount: number
   outputList: string[]
@@ -193,7 +201,7 @@ export interface RecipeEngine {
   describeToken: (token: string) => TokenView
   getItemMetas: (itemName: string) => ItemMeta[]
   getFormulaInfos: (itemName: string) => FormulaInfo[]
-  queryItems: (input: string) => ItemQueryResult
+  queryItems: (input: string, context?: ItemQueryContext) => ItemQueryResult
 }
 
 function extractSpecialMark(value: string): {name: string; special: 'unique' | 'scroll' | 'once' | ''} {
@@ -348,7 +356,7 @@ function normalizeSlashAlternatives(rawAlternatives: string[]): string[] {
 }
 
 function parseIngredientSlots(expr: string): IngredientSlot[] {
-  const mainPart = cleanText(expr).split(/[，,。]/)[0]
+  const mainPart = expr.split(/[，,。]/)[0]?.trim()
   if (!mainPart) {
     return []
   }
@@ -372,11 +380,33 @@ function parseIngredientSlots(expr: string): IngredientSlot[] {
         .map(parseQuantity)
         .filter((item) => item.name)
 
+      const excludes = [...slot.matchAll(/[（(]([^）)]*(?:非|不包括)[^）)]*)[）)]/g)]
+        .flatMap((match) => {
+          const clause = cleanToken(match[1] || '')
+          if (!clause) {
+            return []
+          }
+
+          const targets: string[] = []
+          const notIncludeMatch = clause.match(/不包括(.+)$/)
+          if (notIncludeMatch?.[1]) {
+            targets.push(notIncludeMatch[1])
+          } else if (clause.startsWith('非')) {
+            targets.push(clause.slice(1))
+          }
+
+          return targets
+            .flatMap((target) => target.split(/[、，,和]/))
+            .map((name) => normalizeItemName(name))
+            .filter(Boolean)
+        })
+      const dedupExcludes = [...new Set(excludes)]
+
       if (!alternatives.length) {
         return null
       }
 
-      return { alternatives }
+      return { alternatives, excludes: dedupExcludes }
     })
     .filter((slot): slot is IngredientSlot => slot !== null)
 }
@@ -1055,6 +1085,10 @@ function parseQueryDescriptor(input: string): QueryDescriptor {
   }
 }
 
+function isConcreteIngredientToken(token: string): boolean {
+  return parseQueryDescriptor(token).mode === 'unknown'
+}
+
 function formatIngredientText(rule: RecipeRule): string {
   const firstCombination = rule.ingredientSlots
     .map((slot) => slot.alternatives[0])
@@ -1065,10 +1099,18 @@ function formatIngredientText(rule: RecipeRule): string {
     .join(' + ')
 }
 
+function slotContainsToken(slot: IngredientSlot | undefined, token: string): boolean {
+  if (!slot || !token) {
+    return false
+  }
+
+  return slot.alternatives.some((choice) => choice.name === token)
+}
+
 function ingredientSlotsSignature(ingredientSlots: IngredientSlot[]): string {
   return ingredientSlots
     .map((slot) =>
-      [...slot.alternatives]
+      `${[...slot.alternatives]
         .sort((a, b) => {
           if (a.name !== b.name) {
             return a.name.localeCompare(b.name, 'zh-Hans-CN')
@@ -1077,7 +1119,7 @@ function ingredientSlotsSignature(ingredientSlots: IngredientSlot[]): string {
           return a.quantity - b.quantity
         })
         .map((choice) => `${choice.quantity}x${choice.name}`)
-        .join('/'),
+        .join('/')}!${[...slot.excludes].sort((a, b) => a.localeCompare(b, 'zh-Hans-CN')).join('&')}`,
     )
     .join('+')
 }
@@ -1284,10 +1326,13 @@ export function createRecipeEngine(rawText: string): RecipeEngine {
   const rules = dedupeRules(filteredRandomRules)
 
   const rulesByOutput = new Map<string, RecipeRule[]>()
+  const rulesById = new Map<string, RecipeRule>()
   const outputNames = new Set<string>()
   const allNames = new Set<string>()
 
   for (const rule of rules) {
+    rulesById.set(rule.id, rule)
+
     if (!rulesByOutput.has(rule.output)) {
       rulesByOutput.set(rule.output, [])
     }
@@ -1331,6 +1376,29 @@ export function createRecipeEngine(rawText: string): RecipeEngine {
 
     return canonicalNameMap.get(normalized.toLocaleLowerCase()) || normalized
   }
+
+  // 具体材料100%公式优先：用于在泛化材料弹窗中排除冲突候选项。
+  const guaranteedConcreteRules = rules
+    .filter(
+      (rule) =>
+        rule.chance >= 100 &&
+        !rule.randomOutput &&
+        rule.ingredientSlots.every((slot) => {
+          if (slot.alternatives.length !== 1) {
+            return false
+          }
+
+          const alternative = slot.alternatives[0]
+          if (!alternative || alternative.quantity !== 1) {
+            return false
+          }
+
+          return isConcreteIngredientToken(resolveCanonicalName(alternative.name))
+        }),
+    )
+    .map((rule) => ({
+      ingredientNames: rule.ingredientSlots.map((slot) => resolveCanonicalName(slot.alternatives[0].name)),
+    }))
 
   function getTokenRarityCost(token: string): Nullable<number> {
     const normalized = resolveCanonicalName(token)
@@ -1456,7 +1524,7 @@ export function createRecipeEngine(rawText: string): RecipeEngine {
     })
   }
 
-  function queryItems(input: string): ItemQueryResult {
+  function queryItems(input: string, context?: ItemQueryContext): ItemQueryResult {
     const normalized = resolveCanonicalName(input)
     const concrete = getItemMetas(normalized)
 
@@ -1511,7 +1579,98 @@ export function createRecipeEngine(rawText: string): RecipeEngine {
       }
     }
 
-    const items = [...dedup.values()].sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'))
+    let exclusions = new Set<string>()
+
+    if (
+      (descriptor.mode === 'attribute' || descriptor.mode === 'slot') &&
+      context &&
+      Array.isArray(context.ingredientTokens) &&
+      context.ingredientTokens.length > 1 &&
+      Number.isInteger(context.clickedIndex)
+    ) {
+      const clickedIndex = Number(context.clickedIndex)
+      const ingredientTokens = context.ingredientTokens.map((token) => resolveCanonicalName(token))
+
+      if (clickedIndex >= 0 && clickedIndex < ingredientTokens.length) {
+        const peerTokens = ingredientTokens.filter((_, index) => index !== clickedIndex)
+        const allPeersAreConcrete = peerTokens.length > 0 && peerTokens.every(isConcreteIngredientToken)
+
+        if (allPeersAreConcrete) {
+          // 仅在“同一公式行的其余材料都已具体化”时执行冲突排除，避免影响其他泛化公式。
+          exclusions = guaranteedConcreteRules.reduce((bucket, concreteRule) => {
+            if (concreteRule.ingredientNames.length !== ingredientTokens.length) {
+              return bucket
+            }
+
+            const matched = ingredientTokens.every((token, index) => {
+              if (index === clickedIndex) {
+                return true
+              }
+              return concreteRule.ingredientNames[index] === token
+            })
+
+            if (matched) {
+              bucket.add(concreteRule.ingredientNames[clickedIndex])
+            }
+
+            return bucket
+          }, new Set<string>())
+        }
+      }
+    }
+
+    if (
+      (descriptor.mode === 'attribute' || descriptor.mode === 'slot') &&
+      context &&
+      Number.isInteger(context.clickedIndex) &&
+      Array.isArray(context.ingredientTokens)
+    ) {
+      const clickedIndex = Number(context.clickedIndex)
+      const ingredientTokens = context.ingredientTokens.map((token) => resolveCanonicalName(token))
+
+      if (clickedIndex >= 0 && clickedIndex < ingredientTokens.length) {
+        const sourceRule = context.ruleId ? rulesById.get(context.ruleId) : undefined
+        const directSlotExcludes = sourceRule?.ingredientSlots[clickedIndex]?.excludes || []
+        for (const rawExclude of directSlotExcludes) {
+          exclusions.add(resolveCanonicalName(rawExclude))
+        }
+
+        if (context.output) {
+          const outputName = resolveCanonicalName(context.output)
+          const siblingRules = rulesByOutput.get(outputName) || []
+
+          for (const siblingRule of siblingRules) {
+            if (siblingRule.ingredientSlots.length !== ingredientTokens.length) {
+              continue
+            }
+
+            const samePattern = ingredientTokens.every((token, index) =>
+              slotContainsToken(siblingRule.ingredientSlots[index], token),
+            )
+
+            if (!samePattern) {
+              continue
+            }
+
+            const slotExcludes = siblingRule.ingredientSlots[clickedIndex]?.excludes || []
+            for (const rawExclude of slotExcludes) {
+              exclusions.add(resolveCanonicalName(rawExclude))
+            }
+          }
+        }
+      }
+    }
+
+    const exclusionTerms = [...exclusions].filter(Boolean)
+
+    const items = [...dedup.values()]
+      .filter(
+        (item) =>
+          !exclusionTerms.some(
+            (term) => item.name === term || (term.length >= 2 && item.name.includes(term)),
+          ),
+      )
+      .sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'))
 
     return {
       descriptor,

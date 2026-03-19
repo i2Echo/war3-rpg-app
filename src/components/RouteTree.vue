@@ -22,6 +22,13 @@ interface TokenView {
   specialText?: string
 }
 
+interface TokenClickContext {
+  output: string
+  ingredientTokens: string[]
+  clickedIndex: number
+  ruleId?: string
+}
+
 export default defineComponent({
   name: 'RouteTree',
   props: {
@@ -42,7 +49,7 @@ export default defineComponent({
       required: true,
     },
     onTokenClick: {
-      type: Function as PropType<(token: string, view: any) => void>,
+      type: Function as PropType<(token: string, view: any, context?: TokenClickContext) => void>,
       required: true,
     },
   },
@@ -50,12 +57,12 @@ export default defineComponent({
     getTokenView(token: string): TokenView {
       return this.resolveToken(token)
     },
-    handleTokenClick(token: string) {
+    handleTokenClick(token: string, context?: TokenClickContext) {
       const view = this.getTokenView(token)
       if (!view.clickable) {
         return
       }
-      this.onTokenClick(token, view)
+      this.onTokenClick(token, view, context)
     },
     formatRate(rate?: number): string {
       if (typeof rate !== 'number') {
@@ -185,7 +192,14 @@ export default defineComponent({
                 ? `rarity-text-${getTokenView(ingredient.name).badgeRarity}`
                 : '',
             ]"
-            @click="handleTokenClick(ingredient.name)"
+            @click="
+              handleTokenClick(ingredient.name, {
+                output: node.item,
+                ingredientTokens: node.ingredients.map((entry) => entry.name),
+                clickedIndex: index,
+                ruleId: node.ruleId || undefined,
+              })
+            "
           >
             {{ ingredient.quantity > 1 ? `${ingredient.quantity}x` : '' }}{{ getTokenView(ingredient.name).label }}
             <span

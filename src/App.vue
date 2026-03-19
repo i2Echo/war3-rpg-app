@@ -9,6 +9,7 @@ type RouteResult = ReturnType<typeof recipeEngine.findRoutes>['routes'][number]
 type ItemMeta = ReturnType<typeof recipeEngine.getItemMetas>[number]
 type FormulaInfo = ReturnType<typeof recipeEngine.getFormulaInfos>[number]
 type TokenView = ReturnType<typeof recipeEngine.describeToken>
+type ItemQueryContext = Parameters<typeof recipeEngine.queryItems>[1]
 type QueryTab = 'synthesis' | 'attribute' | 'items'
 type SynthesisSource = 'direct' | 'drill' | 'back'
 
@@ -354,8 +355,8 @@ function resolveToken(token: string): TokenView {
   return recipeEngine.describeToken(token)
 }
 
-function openGenericModal(token: string) {
-  const result = recipeEngine.queryItems(token)
+function openGenericModal(token: string, context?: ItemQueryContext) {
+  const result = recipeEngine.queryItems(token, context)
   modalTitle.value = `${token} 可选物品`
   modalItems.value = result.items
 
@@ -372,7 +373,7 @@ function closeModal() {
   modalOpen.value = false
 }
 
-function handleTreeTokenClick(token: string, view: TokenView) {
+function handleTreeTokenClick(token: string, view: TokenView, context?: ItemQueryContext) {
   if (view.kind === 'item') {
     targetItem.value = token
     runSynthesis(token, 'drill')
@@ -380,7 +381,7 @@ function handleTreeTokenClick(token: string, view: TokenView) {
   }
 
   if (view.kind === 'generic' && view.queryToken) {
-    openGenericModal(view.queryToken)
+    openGenericModal(view.queryToken, context)
   }
 }
 
