@@ -536,6 +536,8 @@ initializeDiduQuestions()
       <header class="hero">
         <div class="hero-content">
           <h1>西方世界的劫难3 · 炼化公式查询小助手</h1>
+          <span class="version">V2.4.6</span>
+          <a href="https://war3rpgv1.677233.xyz/" class="link"> 查看装备图鉴</a>
           <p>支持查炼化、查属性、查物品；具体物品可下钻，泛化条件可弹窗查看对应物品。</p>
         </div>
         <button type="button" class="didu-quiz-btn" @click="openDiduModal" title="帝都答题">
