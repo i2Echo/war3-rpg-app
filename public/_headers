@@ -1,0 +1,28 @@
+# Cache static assets with hashed names for 1 year
+/assets/*.js
+  Cache-Control: public, max-age=31536000, immutable
+
+/assets/*.css
+  Cache-Control: public, max-age=31536000, immutable
+
+/assets/*.gz
+  Cache-Control: public, max-age=31536000, immutable
+
+/assets/*.br
+  Cache-Control: public, max-age=31536000, immutable
+
+# HTML should not be cached long
+/index.html
+  Cache-Control: public, max-age=0, must-revalidate
+
+# Static data files
+/*.md
+  Cache-Control: public, max-age=86400
+
+/robots.txt
+  Cache-Control: public, max-age=86400
+
+# Security headers (applied to all pages)
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY

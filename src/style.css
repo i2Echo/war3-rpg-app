@@ -195,6 +195,7 @@ body.body-scroll-lock {
   overflow-y: auto;
   overflow-x: hidden;
   padding-right: 4px;
+  contain: layout style;
 }
 
 .result-title {
@@ -235,6 +236,7 @@ body.body-scroll-lock {
   border-radius: 12px;
   padding: 12px;
   background: #fafafa;
+  contain: layout style;
 }
 
 .route-card header {
@@ -703,7 +705,7 @@ body.body-scroll-lock {
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .didu-quiz-btn:hover {
@@ -753,7 +755,7 @@ body.body-scroll-lock {
   font-size: 13px;
   color: #6b7280;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .difficulty-tab:hover {
@@ -771,6 +773,7 @@ body.body-scroll-lock {
   flex: 1;
   overflow-y: auto;
   padding-right: 8px;
+  contain: content;
 }
 
 .didu-questions-container::-webkit-scrollbar {
@@ -803,6 +806,7 @@ body.body-scroll-lock {
   border-radius: 6px;
   font-size: 13px;
   line-height: 1.5;
+  contain: layout style;
 }
 
 .question-num {
